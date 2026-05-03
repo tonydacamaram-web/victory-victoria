@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('premios_boleteria')
-      .select('*, producto:productos(nombre), caja:cajas(turno)')
+      .select('*, producto:productos!producto_id(nombre), caja:cajas(turno)')
       .order('created_at', { ascending: false })
 
     if (caja_id) {

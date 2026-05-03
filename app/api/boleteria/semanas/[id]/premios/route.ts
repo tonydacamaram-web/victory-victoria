@@ -14,7 +14,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('premios_boleteria')
-      .select('*, producto:productos(nombre), caja:cajas(turno)')
+      .select('*, producto:productos!producto_id(nombre), caja:cajas(turno)')
       .eq('semana_id', semana_id)
       .order('created_at', { ascending: false })
 
