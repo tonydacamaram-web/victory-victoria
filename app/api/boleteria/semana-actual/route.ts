@@ -150,7 +150,7 @@ export async function GET() {
     // Premios pagados en esta semana
     const { data: premios } = await supabase
       .from('premios_boleteria')
-      .select('*, producto:productos(nombre), boletos_producto:productos!boletos_producto_id(nombre), caja:cajas(turno)')
+      .select('*, producto:productos(nombre), caja:cajas(turno)')
       .eq('semana_id', semana.id)
       .order('created_at', { ascending: false })
 

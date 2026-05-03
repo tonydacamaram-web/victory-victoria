@@ -1407,7 +1407,7 @@ export default function BoleteriaPage() {
                       <div>{(p.producto as { nombre: string } | null)?.nombre ?? (p.observaciones ?? '—')}</div>
                       {p.tipo === 'mayor' && p.boletos_producto_id && p.boletos_cantidad && (
                         <div className="mt-0.5 text-indigo-400">
-                          +{p.boletos_cantidad} boleto{p.boletos_cantidad > 1 ? 's' : ''} {(p.boletos_producto as { nombre: string } | null)?.nombre ?? ''}
+                          +{p.boletos_cantidad} boleto{p.boletos_cantidad > 1 ? 's' : ''} {productos.find(x => x.id === p.boletos_producto_id)?.nombre ?? ''}
                         </div>
                       )}
                     </td>

@@ -44,7 +44,7 @@ export async function PATCH(
       .from('premios_boleteria')
       .update(update)
       .eq('id', id)
-      .select('*, producto:productos(nombre), boletos_producto:productos!boletos_producto_id(nombre), caja:cajas(turno)')
+      .select('*, producto:productos(nombre), caja:cajas(turno)')
       .single()
 
     if (error) throw error
