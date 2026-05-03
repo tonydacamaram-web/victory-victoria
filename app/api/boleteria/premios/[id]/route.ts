@@ -15,10 +15,15 @@ export async function PATCH(
 
     const {
       producto_id, tipo, moneda, monto, observaciones, fuente, metodo_externo,
+      boletos_producto_id, boletos_cantidad,
     } = await request.json()
 
     if (monto !== undefined && parseFloat(monto) <= 0) {
       return NextResponse.json({ error: 'El monto debe ser mayor a cero' }, { status: 400 })
+    }
+
+    if (boletos_cantidad !== undefined && boletos_cantidad !== null && boletos_cantidad <= 0) {
+      return NextResponse.json({ error: 'La cantidad de boletos debe ser mayor a cero' }, { status: 400 })
     }
 
     const update: Record<string, unknown> = {}
@@ -31,13 +36,15 @@ export async function PATCH(
     if (metodo_externo !== undefined) {
       update.metodo_externo = fuente === 'externo' ? metodo_externo : null
     }
+    if (boletos_producto_id !== undefined) update.boletos_producto_id = boletos_producto_id || null
+    if (boletos_cantidad    !== undefined) update.boletos_cantidad    = boletos_cantidad || null
 
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('premios_boleteria')
       .update(update)
       .eq('id', id)
-      .select('*, producto:productos(nombre), caja:cajas(turno)')
+      .select('*, producto:productos(nombre), boletos_producto:productos!boletos_producto_id(nombre), caja:cajas(turno)')
       .single()
 
     if (error) throw error

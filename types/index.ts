@@ -220,6 +220,9 @@ export interface PremioBoleteria {
   observaciones: string | null
   fuente: 'caja' | 'externo'
   metodo_externo: 'efectivo' | 'pago_movil' | null
+  boletos_producto_id: string | null
+  boletos_cantidad: number | null
+  boletos_producto?: { nombre: string }
   caja?: { turno: 1 | 2 | null }
   created_at: string
 }
@@ -280,6 +283,7 @@ export interface FilaArqueoLoteria {
   vendidos: number
   vendidos_calculado?: number
   vendidos_manual?: number | null
+  boletos_entregados: number
   disponibles: number
   ingreso_bruto: number
   comision_total: number

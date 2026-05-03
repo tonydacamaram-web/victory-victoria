@@ -14,7 +14,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('premios_boleteria')
-      .select('*, producto:productos(nombre), caja:cajas(turno)')
+      .select('*, producto:productos(nombre), boletos_producto:productos!boletos_producto_id(nombre), caja:cajas(turno)')
       .eq('semana_id', semana_id)
       .order('created_at', { ascending: false })
 
@@ -39,10 +39,15 @@ export async function POST(
     const {
       caja_id, producto_id, tipo, moneda, monto, observaciones,
       fuente = 'caja', metodo_externo = null,
+      boletos_producto_id = null, boletos_cantidad = null,
     } = await request.json()
 
     if (!caja_id || !tipo || !moneda || !monto) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+
+    if (boletos_cantidad !== null && boletos_cantidad <= 0) {
+      return NextResponse.json({ error: 'La cantidad de boletos debe ser mayor a cero' }, { status: 400 })
     }
 
     const admin = createAdminClient()
@@ -58,6 +63,8 @@ export async function POST(
         observaciones: observaciones || null,
         fuente,
         metodo_externo: fuente === 'externo' ? metodo_externo : null,
+        boletos_producto_id: tipo === 'mayor' ? (boletos_producto_id || null) : null,
+        boletos_cantidad: tipo === 'mayor' ? (boletos_cantidad || null) : null,
       })
       .select()
       .single()

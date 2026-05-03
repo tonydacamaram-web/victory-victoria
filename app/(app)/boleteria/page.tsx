@@ -100,6 +100,8 @@ export default function BoleteriaPage() {
   const [premioFuente, setPremioFuente] = useState<'caja' | 'externo'>('caja')
   const [premioMetodoExterno, setPremioMetodoExterno] = useState<'efectivo' | 'pago_movil'>('efectivo')
   const [premioObs, setPremioObs] = useState('')
+  const [premioBoletosProdId, setPremioBoletosProdId] = useState('')
+  const [premioBoletosQty, setPremioBoletosQty] = useState('')
 
   // Estado del modal de edición de premio
   const [editandoPremio, setEditandoPremio] = useState<PremioBoleteria | null>(null)
@@ -110,6 +112,8 @@ export default function BoleteriaPage() {
   const [editFuente, setEditFuente] = useState<'caja' | 'externo'>('caja')
   const [editMetodo, setEditMetodo] = useState<'efectivo' | 'pago_movil'>('efectivo')
   const [editObs, setEditObs] = useState('')
+  const [editBoletosProdId, setEditBoletosProdId] = useState('')
+  const [editBoletosQty, setEditBoletosQty] = useState('')
   const [editGuardando, setEditGuardando] = useState(false)
 
   const esLunes = new Date().getDay() === 1
@@ -266,6 +270,8 @@ export default function BoleteriaPage() {
           observaciones: premioObs || null,
           fuente: premioFuente,
           metodo_externo: premioFuente === 'externo' ? premioMetodoExterno : null,
+          boletos_producto_id: premioTipo === 'mayor' && premioBoletosProdId ? premioBoletosProdId : null,
+          boletos_cantidad: premioTipo === 'mayor' && premioBoletosQty && parseInt(premioBoletosQty) > 0 ? parseInt(premioBoletosQty) : null,
         }),
       })
       const data = await r.json()
@@ -278,6 +284,8 @@ export default function BoleteriaPage() {
       setPremioFuente('caja')
       setPremioMetodoExterno('efectivo')
       setPremioObs('')
+      setPremioBoletosProdId('')
+      setPremioBoletosQty('')
       await cargar()
     } finally {
       setGuardando(false)
@@ -294,6 +302,8 @@ export default function BoleteriaPage() {
     setEditFuente(p.fuente)
     setEditMetodo(p.metodo_externo ?? 'efectivo')
     setEditObs(p.observaciones ?? '')
+    setEditBoletosProdId(p.boletos_producto_id ?? '')
+    setEditBoletosQty(p.boletos_cantidad ? String(p.boletos_cantidad) : '')
   }
 
   // ── guardar edición de premio ──
@@ -313,6 +323,8 @@ export default function BoleteriaPage() {
           fuente: editFuente,
           metodo_externo: editFuente === 'externo' ? editMetodo : null,
           observaciones: editObs || null,
+          boletos_producto_id: editTipo === 'mayor' && editBoletosProdId ? editBoletosProdId : null,
+          boletos_cantidad: editTipo === 'mayor' && editBoletosQty && parseInt(editBoletosQty) > 0 ? parseInt(editBoletosQty) : null,
         }),
       })
       const data = await r.json()
@@ -404,26 +416,33 @@ export default function BoleteriaPage() {
   // ── ajustes por premios ──
   const reintegrosPorProd = new Map<string, number>()
   const mayorPorProd = new Map<string, number>() // key: "producto_id:moneda"
+  const boletosPorProd = new Map<string, number>() // boletos entregados como parte de pago
   for (const p of premios) {
-    if (!p.producto_id) continue
-    if (p.tipo === 'reintegro') {
+    if (p.tipo === 'reintegro' && p.producto_id) {
       reintegrosPorProd.set(p.producto_id, (reintegrosPorProd.get(p.producto_id) ?? 0) + 1)
     } else if (p.tipo === 'mayor') {
-      const k = `${p.producto_id}:${p.moneda}`
-      mayorPorProd.set(k, (mayorPorProd.get(k) ?? 0) + p.monto)
+      if (p.producto_id) {
+        const k = `${p.producto_id}:${p.moneda}`
+        mayorPorProd.set(k, (mayorPorProd.get(k) ?? 0) + p.monto)
+      }
+      if (p.boletos_producto_id && p.boletos_cantidad) {
+        boletosPorProd.set(p.boletos_producto_id, (boletosPorProd.get(p.boletos_producto_id) ?? 0) + p.boletos_cantidad)
+      }
     }
   }
   const filasAjustadas: FilaArqueoLoteria[] = filas.map(f => {
     const nRei  = reintegrosPorProd.get(f.producto_id) ?? 0
+    const nBol  = boletosPorProd.get(f.producto_id) ?? 0
     const mayor = mayorPorProd.get(`${f.producto_id}:${f.moneda}`) ?? 0
     const vAj   = Math.max(0, f.vendidos - nRei)
     return {
       ...f,
-      vendidos:        vAj,
-      disponibles:     f.recibidos - vAj - nRei,
-      ingreso_bruto:   f.precio * vAj,
-      comision_total:  f.comision * vAj,
-      deuda_proveedor: Math.max(0, f.costo * vAj - mayor),
+      vendidos:          vAj,
+      boletos_entregados: nBol,
+      disponibles:       Math.max(0, f.recibidos - vAj - nRei - nBol),
+      ingreso_bruto:     f.precio * vAj,
+      comision_total:    f.comision * vAj,
+      deuda_proveedor:   Math.max(0, f.costo * vAj - mayor),
     }
   })
   // Premios mayores sin producto vinculado → deducción global
@@ -1111,6 +1130,49 @@ export default function BoleteriaPage() {
                 )}
               </div>
 
+              {/* Boletos como parte de pago — solo premios mayores */}
+              {premioTipo === 'mayor' && (
+                <div className="border border-indigo-800/50 bg-indigo-900/10 rounded-lg p-3 space-y-3">
+                  <p className="text-xs font-medium text-indigo-300">Pago parcial en boletos (opcional)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Ticket entregado</label>
+                      <select
+                        value={premioBoletosProdId}
+                        onChange={e => { setPremioBoletosProdId(e.target.value); if (!e.target.value) setPremioBoletosQty('') }}
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="">— Ninguno —</option>
+                        {productos.map(p => (
+                          <option key={p.id} value={p.id}>{p.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Cantidad</label>
+                      <input
+                        type="number" min="1" step="1"
+                        value={premioBoletosQty}
+                        onChange={e => setPremioBoletosQty(e.target.value)}
+                        placeholder="0"
+                        disabled={!premioBoletosProdId}
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                      />
+                    </div>
+                  </div>
+                  {premioBoletosProdId && premioBoletosQty && parseInt(premioBoletosQty) > 0 && (() => {
+                    const prod = productos.find(p => p.id === premioBoletosProdId)
+                    if (!prod) return null
+                    const precioUnit = prod.moneda_precio === 'USD' ? prod.precio_usd : (prod.precio_ves ?? 0)
+                    return (
+                      <p className="text-xs text-indigo-300/70">
+                        Valor: {fmtMonto(precioUnit * parseInt(premioBoletosQty), prod.moneda_precio)} • Se descuenta del inventario disponible
+                      </p>
+                    )
+                  })()}
+                </div>
+              )}
+
               {/* Observaciones */}
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Notas (opcional)</label>
@@ -1240,6 +1302,49 @@ export default function BoleteriaPage() {
                 )}
               </div>
 
+              {/* Boletos como parte de pago — solo premios mayores */}
+              {editTipo === 'mayor' && (
+                <div className="border border-indigo-800/50 bg-indigo-900/10 rounded-lg p-3 space-y-3">
+                  <p className="text-xs font-medium text-indigo-300">Pago parcial en boletos (opcional)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Ticket entregado</label>
+                      <select
+                        value={editBoletosProdId}
+                        onChange={e => { setEditBoletosProdId(e.target.value); if (!e.target.value) setEditBoletosQty('') }}
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="">— Ninguno —</option>
+                        {productos.map(p => (
+                          <option key={p.id} value={p.id}>{p.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Cantidad</label>
+                      <input
+                        type="number" min="1" step="1"
+                        value={editBoletosQty}
+                        onChange={e => setEditBoletosQty(e.target.value)}
+                        placeholder="0"
+                        disabled={!editBoletosProdId}
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                      />
+                    </div>
+                  </div>
+                  {editBoletosProdId && editBoletosQty && parseInt(editBoletosQty) > 0 && (() => {
+                    const prod = productos.find(p => p.id === editBoletosProdId)
+                    if (!prod) return null
+                    const precioUnit = prod.moneda_precio === 'USD' ? prod.precio_usd : (prod.precio_ves ?? 0)
+                    return (
+                      <p className="text-xs text-indigo-300/70">
+                        Valor: {fmtMonto(precioUnit * parseInt(editBoletosQty), prod.moneda_precio)} • Se descuenta del inventario disponible
+                      </p>
+                    )
+                  })()}
+                </div>
+              )}
+
               {/* Observaciones */}
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Notas (opcional)</label>
@@ -1299,7 +1404,12 @@ export default function BoleteriaPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-gray-300 text-xs">
-                      {(p.producto as { nombre: string } | null)?.nombre ?? (p.observaciones ?? '—')}
+                      <div>{(p.producto as { nombre: string } | null)?.nombre ?? (p.observaciones ?? '—')}</div>
+                      {p.tipo === 'mayor' && p.boletos_producto_id && p.boletos_cantidad && (
+                        <div className="mt-0.5 text-indigo-400">
+                          +{p.boletos_cantidad} boleto{p.boletos_cantidad > 1 ? 's' : ''} {(p.boletos_producto as { nombre: string } | null)?.nombre ?? ''}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex flex-wrap items-center gap-1">
