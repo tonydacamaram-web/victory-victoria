@@ -442,7 +442,7 @@ export default function BoleteriaPage() {
       disponibles:       Math.max(0, f.recibidos - vAj - nRei - nBol),
       ingreso_bruto:     f.precio * vAj,
       comision_total:    f.comision * vAj,
-      deuda_proveedor:   Math.max(0, f.costo * vAj - mayor),
+      deuda_proveedor:   f.costo * vAj - mayor,
     }
   })
   // Premios mayores sin producto vinculado → deducción global
@@ -455,14 +455,14 @@ export default function BoleteriaPage() {
     vendidos:   filasAjustadas.filter(f => f.moneda === 'USD').reduce((a, f) => a + f.vendidos, 0),
     ingreso:    filasAjustadas.filter(f => f.moneda === 'USD').reduce((a, f) => a + f.ingreso_bruto, 0),
     comision:   filasAjustadas.filter(f => f.moneda === 'USD').reduce((a, f) => a + f.comision_total, 0),
-    deuda:      Math.max(0, filasAjustadas.filter(f => f.moneda === 'USD').reduce((a, f) => a + f.deuda_proveedor, 0) - mayorSinProdUSD),
+    deuda:      filasAjustadas.filter(f => f.moneda === 'USD').reduce((a, f) => a + f.deuda_proveedor, 0) - mayorSinProdUSD,
   }
   const totalVES = {
     recibidos:  filasAjustadas.filter(f => f.moneda === 'VES').reduce((a, f) => a + f.recibidos, 0),
     vendidos:   filasAjustadas.filter(f => f.moneda === 'VES').reduce((a, f) => a + f.vendidos, 0),
     ingreso:    filasAjustadas.filter(f => f.moneda === 'VES').reduce((a, f) => a + f.ingreso_bruto, 0),
     comision:   filasAjustadas.filter(f => f.moneda === 'VES').reduce((a, f) => a + f.comision_total, 0),
-    deuda:      Math.max(0, filasAjustadas.filter(f => f.moneda === 'VES').reduce((a, f) => a + f.deuda_proveedor, 0) - mayorSinProdVES),
+    deuda:      filasAjustadas.filter(f => f.moneda === 'VES').reduce((a, f) => a + f.deuda_proveedor, 0) - mayorSinProdVES,
   }
 
   const lunesStr = formatFecha(getLunesActual().toISOString().split('T')[0])
