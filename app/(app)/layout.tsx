@@ -49,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/loteria" className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-amber-400 hover:bg-gray-800 transition-colors">Lotería</Link>
             {esAdmin && (
               <>
+                <Link href="/admin/comisiones" className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-amber-400 hover:bg-gray-800 transition-colors">Comisiones</Link>
                 <Link href="/admin/inventario" className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-emerald-400 hover:bg-gray-800 transition-colors">Inventario</Link>
                 <Link href="/admin/productos" className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-emerald-400 hover:bg-gray-800 transition-colors">Productos</Link>
                 <Link href="/admin/categorias" className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-emerald-400 hover:bg-gray-800 transition-colors">Categorías</Link>
