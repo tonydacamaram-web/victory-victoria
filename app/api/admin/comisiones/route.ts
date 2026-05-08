@@ -49,7 +49,13 @@ export async function GET(request: NextRequest) {
     ])
 
     // ── Totales globales ──────────────────────────────────────────
-    const total_usd = txs.reduce((s, t) => s + (t.total_usd ?? 0), 0)
+    // total_usd y total_ves son las porciones cobradas en cada moneda;
+    // se convierten juntas a USD usando la tasa de cada transacción.
+    const total_usd = txs.reduce((s, t) => {
+      const usd = t.total_usd ?? 0
+      const ves = t.tasa_aplicada > 0 ? (t.total_ves ?? 0) / t.tasa_aplicada : 0
+      return s + usd + ves
+    }, 0)
     const comision_usd = txs.reduce((s, t) => s + (t.comision_total_usd ?? 0), 0)
     const tasa_promedio = txs.reduce((s, t) => s + (t.tasa_aplicada ?? 0), 0) / txs.length
 
