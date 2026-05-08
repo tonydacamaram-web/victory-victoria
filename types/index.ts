@@ -124,6 +124,7 @@ export interface Producto {
   precio_ves: number | null
   comision_ves: number | null
   costo_indexado_usd: boolean
+  comision_pct: number | null
   imagen_url: string | null
   activo: boolean
   monto_variable: boolean

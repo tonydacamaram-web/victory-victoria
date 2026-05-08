@@ -15,7 +15,7 @@ export async function PUT(
     const body = await request.json()
     const {
       nombre, categoria_id, sistema_id, imagen_url, monto_variable, activo,
-      moneda_precio, costo_indexado_usd,
+      moneda_precio, costo_indexado_usd, comision_pct,
       costo_usd, precio_usd,
       costo_ves, precio_ves,
     } = body
@@ -78,6 +78,7 @@ export async function PUT(
         imagen_url: imagen_url ?? null,
         moneda_precio: moneda_precio ?? 'USD',
         costo_indexado_usd: esIndexado,
+        comision_pct: monto_variable ? (comision_pct ?? null) : null,
         costo_usd: esVes ? (esIndexado ? costo_usd : 0) : costo_usd,
         precio_usd: esVes ? 0 : precio_usd,
         comision_usd,

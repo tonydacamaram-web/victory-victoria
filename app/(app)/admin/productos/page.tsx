@@ -14,6 +14,7 @@ const EMPTY_FORM = {
   monedaIngreso: 'USD' as 'USD' | 'VES',
   costo_indexado_usd: false,
   monto_variable: false,
+  comision_pct: '',
   activo: true,
   imagen_url: '' as string,
 }
@@ -113,6 +114,7 @@ export default function ProductosPage() {
     }
 
     const esVes = form.monedaIngreso === 'VES'
+    const pctNum = parseFloat(form.comision_pct || '0') || 0
     const payload = {
       nombre: form.nombre,
       categoria_id: form.categoria_id,
@@ -122,6 +124,7 @@ export default function ProductosPage() {
       imagen_url: form.imagen_url || null,
       moneda_precio: esVes ? 'VES' : 'USD',
       costo_indexado_usd: form.costo_indexado_usd,
+      comision_pct: form.monto_variable ? (pctNum > 0 ? pctNum : null) : null,
       // USD: costo en USD (también cuando es modo mixto VES precio / USD costo)
       costo_usd: form.monto_variable ? 0 : esVes && !esModoMixto ? 0 : costoUSD,
       precio_usd: form.monto_variable || esVes ? 0 : precioUSD,
@@ -170,6 +173,7 @@ export default function ProductosPage() {
       monedaIngreso: esVes ? 'VES' : 'USD',
       costo_indexado_usd: !!p.costo_indexado_usd,
       monto_variable: p.monto_variable,
+      comision_pct: p.comision_pct != null ? p.comision_pct.toString() : '',
       activo: p.activo,
       imagen_url: p.imagen_url ?? '',
     })
@@ -319,11 +323,42 @@ export default function ProductosPage() {
                   type="checkbox"
                   id="monto_variable"
                   checked={form.monto_variable}
-                  onChange={e => setForm(f => ({ ...f, monto_variable: e.target.checked }))}
+                  onChange={e => setForm(f => ({ ...f, monto_variable: e.target.checked, comision_pct: '' }))}
                   className="rounded"
                 />
                 <label htmlFor="monto_variable" className="text-sm text-gray-300">Monto variable</label>
               </div>
+
+              {/* Comisión porcentual — solo para monto variable */}
+              {form.monto_variable && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    % Comisión
+                    <span className="ml-1 text-gray-500 font-normal">(deducida del monto ingresado)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={form.comision_pct}
+                      onChange={e => setForm(f => ({ ...f, comision_pct: e.target.value }))}
+                      className={inputCls}
+                      placeholder="Ej: 4.31"
+                    />
+                    <span className="text-gray-400 text-sm shrink-0">%</span>
+                  </div>
+                  {form.comision_pct && parseFloat(form.comision_pct) > 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Ej: 1.000 Bs. → comisión {(1000 * parseFloat(form.comision_pct) / 100).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs., costo {(1000 * (1 - parseFloat(form.comision_pct) / 100)).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs.
+                    </p>
+                  )}
+                  {(!form.comision_pct || parseFloat(form.comision_pct) === 0) && (
+                    <p className="text-xs text-gray-500 mt-1">Sin porcentaje: aplica comisión fija de 2ª capa (20%)</p>
+                  )}
+                </div>
+              )}
 
               {!form.monto_variable && (
                 <>
@@ -570,7 +605,13 @@ export default function ProductosPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right text-amber-400">
-                  {p.monto_variable ? '—' : p.costo_indexado_usd ? (
+                  {p.monto_variable ? (
+                    p.comision_pct ? (
+                      <span className="text-amber-300">{p.comision_pct}%</span>
+                    ) : (
+                      <span className="text-xs text-gray-500">20% fijo</span>
+                    )
+                  ) : p.costo_indexado_usd ? (
                     <span>
                       <span className="italic text-xs text-amber-300">~tasa</span>
                       {tasa > 0 && (p.precio_ves ?? 0) > 0 && (

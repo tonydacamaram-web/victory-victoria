@@ -35,7 +35,15 @@ export function calcularPrecioItem(
         const precioUsd = tasa > 0 ? vesAmt / tasa : 0
         return { precio_usd: precioUsd, comision: 0, precio_ves: vesAmt, moneda: 'USD' as const }
       } else if (categoriaCobraComision) {
-        // Pago en bolívares → aplicar 20% de comisión
+        const pct = producto.comision_pct ?? null
+        if (pct !== null && pct > 0) {
+          // Comisión porcentual configurable: se deduce del monto ingresado
+          const comisionVes = Math.round(vesAmt * (pct / 100) * 100) / 100
+          const precioUsd = tasa > 0 ? vesAmt / tasa : 0
+          const comisionUsd = tasa > 0 ? comisionVes / tasa : 0
+          return { precio_usd: precioUsd, comision: comisionUsd, precio_ves: vesAmt, moneda: 'VES' as const }
+        }
+        // Sin porcentaje configurado → surcharge 20% (retrocompatibilidad)
         const precioVes = Math.round(vesAmt * 1.20 * 100) / 100
         const comisionVes = Math.round(vesAmt * 0.20 * 100) / 100
         const precioUsd = tasa > 0 ? precioVes / tasa : 0
