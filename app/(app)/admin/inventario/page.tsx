@@ -119,6 +119,7 @@ export default function InventarioPage() {
 
   const [cambiandoTipo, setCambiandoTipo] = useState<string | null>(null)
   const [resetConfirm, setResetConfirm] = useState<string | null>(null)
+  const [resetAllConfirm, setResetAllConfirm] = useState(false)
 
   async function cambiarTipo(sis: SistemaInventario, nuevoTipo: 'saldo_ves' | 'unidades' | 'contador') {
     if (nuevoTipo === sis.tipo) return
@@ -139,7 +140,7 @@ export default function InventarioPage() {
     setCambiandoTipo(null)
   }
 
-  async function resetContador(sis: SistemaInventario) {
+  async function resetSistema(sis: SistemaInventario) {
     const res = await fetch(`/api/inventario/${sis.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -148,10 +149,26 @@ export default function InventarioPage() {
     setResetConfirm(null)
     if (res.ok) {
       await cargarSistemas()
-      mostrarMensaje(`${sis.nombre}: contador reiniciado a 0`, 'ok')
+      mostrarMensaje(`${sis.nombre}: restablecido a 0`, 'ok')
     } else {
       const d = await res.json()
-      mostrarMensaje(d.error ?? 'Error al reiniciar', 'error')
+      mostrarMensaje(d.error ?? 'Error al restablecer', 'error')
+    }
+  }
+
+  async function resetTodo() {
+    const res = await fetch('/api/inventario', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reset_all: true }),
+    })
+    setResetAllConfirm(false)
+    if (res.ok) {
+      await cargarSistemas()
+      mostrarMensaje('Todos los sistemas restablecidos a 0', 'ok')
+    } else {
+      const d = await res.json()
+      mostrarMensaje(d.error ?? 'Error al restablecer', 'error')
     }
   }
 
@@ -204,7 +221,33 @@ export default function InventarioPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <h1 className="text-xl font-bold text-amber-400">Inventario</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-amber-400">Inventario</h1>
+        {resetAllConfirm ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-red-400">¿Restablecer todos a 0?</span>
+            <button
+              onClick={resetTodo}
+              className="text-xs bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
+            >
+              Confirmar
+            </button>
+            <button
+              onClick={() => setResetAllConfirm(false)}
+              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setResetAllConfirm(true)}
+            className="text-xs border border-gray-600 text-gray-400 hover:text-red-400 hover:border-red-700 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            ↺ Restablecer todo
+          </button>
+        )}
+      </div>
 
       {mensaje && (
         <div className={`rounded-lg px-4 py-2 text-sm border ${mensaje.tipo === 'ok' ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700' : 'bg-red-900/40 text-red-300 border-red-700'}`}>
@@ -244,33 +287,7 @@ export default function InventarioPage() {
                       )}
                     </div>
                     {esContador ? (
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-lg font-bold text-gray-100">{fmtSaldo(sis, sis.saldo_actual)}</p>
-                        {resetConfirm === sis.id ? (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => resetContador(sis)}
-                              className="text-xs bg-red-700 hover:bg-red-600 text-white px-2 py-0.5 rounded font-medium"
-                            >
-                              Confirmar
-                            </button>
-                            <button
-                              onClick={() => setResetConfirm(null)}
-                              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-0.5 rounded"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setResetConfirm(sis.id)}
-                            title="Reiniciar contador"
-                            className="text-xs text-gray-500 hover:text-red-400 transition-colors px-1"
-                          >
-                            ↺
-                          </button>
-                        )}
-                      </div>
+                      <p className="text-lg font-bold text-gray-100">{fmtSaldo(sis, sis.saldo_actual)}</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-1 text-xs">
                         <div className="bg-amber-900/20 border border-amber-800 rounded-lg px-2 py-1">
@@ -286,6 +303,30 @@ export default function InventarioPage() {
                           </p>
                         </div>
                       </div>
+                    )}
+                    {resetConfirm === sis.id ? (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => resetSistema(sis)}
+                          className="flex-1 text-xs bg-red-700 hover:bg-red-600 text-white px-2 py-1 rounded font-medium transition-colors"
+                        >
+                          Confirmar reset
+                        </button>
+                        <button
+                          onClick={() => setResetConfirm(null)}
+                          className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setResetConfirm(sis.id)}
+                        title="Restablecer a 0"
+                        className="w-full text-xs text-gray-500 hover:text-red-400 border border-gray-700 hover:border-red-800 rounded-lg py-1 transition-colors"
+                      >
+                        ↺ Restablecer a 0
+                      </button>
                     )}
                     <div className="flex rounded-lg overflow-hidden border border-gray-600 text-xs">
                       {([

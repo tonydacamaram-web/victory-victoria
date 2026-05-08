@@ -23,13 +23,12 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    // Reset contador
+    // Reset a 0 (todos los tipos)
     if (body.reset === true) {
       const { data, error } = await supabase
         .from('sistemas_inventario')
-        .update({ saldo_actual: 0 })
+        .update({ saldo_actual: 0, saldo_turno_1: 0, saldo_turno_2: 0 })
         .eq('id', id)
-        .eq('tipo', 'contador')
         .select()
         .single()
       if (error) throw error
