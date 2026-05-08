@@ -43,12 +43,16 @@ export function calcularPrecioItem(
           const comisionUsd = tasa > 0 ? comisionVes / tasa : 0
           return { precio_usd: precioUsd, comision: comisionUsd, precio_ves: vesAmt, moneda: 'VES' as const }
         }
-        // Sin porcentaje configurado → surcharge 20% (retrocompatibilidad)
-        const precioVes = Math.round(vesAmt * 1.20 * 100) / 100
-        const comisionVes = Math.round(vesAmt * 0.20 * 100) / 100
-        const precioUsd = tasa > 0 ? precioVes / tasa : 0
-        const comisionUsd = tasa > 0 ? comisionVes / tasa : 0
-        return { precio_usd: precioUsd, comision: comisionUsd, precio_ves: precioVes, moneda: 'VES' as const }
+        // Sin porcentaje configurado → surcharge 20% solo si el producto lo tiene habilitado
+        if (producto.cobra_comision_fija !== false) {
+          const precioVes = Math.round(vesAmt * 1.20 * 100) / 100
+          const comisionVes = Math.round(vesAmt * 0.20 * 100) / 100
+          const precioUsd = tasa > 0 ? precioVes / tasa : 0
+          const comisionUsd = tasa > 0 ? comisionVes / tasa : 0
+          return { precio_usd: precioUsd, comision: comisionUsd, precio_ves: precioVes, moneda: 'VES' as const }
+        }
+        const precioUsd = tasa > 0 ? vesAmt / tasa : 0
+        return { precio_usd: precioUsd, comision: 0, precio_ves: vesAmt, moneda: 'VES' as const }
       } else {
         const precioUsd = tasa > 0 ? vesAmt / tasa : 0
         return { precio_usd: precioUsd, comision: 0, precio_ves: vesAmt, moneda: 'VES' as const }

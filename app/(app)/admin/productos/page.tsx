@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   costo_indexado_usd: false,
   monto_variable: false,
   comision_pct: '',
+  cobra_comision_fija: true,
   activo: true,
   imagen_url: '' as string,
 }
@@ -125,6 +126,7 @@ export default function ProductosPage() {
       moneda_precio: esVes ? 'VES' : 'USD',
       costo_indexado_usd: form.costo_indexado_usd,
       comision_pct: form.monto_variable ? (pctNum > 0 ? pctNum : null) : null,
+      cobra_comision_fija: form.monto_variable ? form.cobra_comision_fija : true,
       // USD: costo en USD (también cuando es modo mixto VES precio / USD costo)
       costo_usd: form.monto_variable ? 0 : esVes && !esModoMixto ? 0 : costoUSD,
       precio_usd: form.monto_variable || esVes ? 0 : precioUSD,
@@ -174,6 +176,7 @@ export default function ProductosPage() {
       costo_indexado_usd: !!p.costo_indexado_usd,
       monto_variable: p.monto_variable,
       comision_pct: p.comision_pct != null ? p.comision_pct.toString() : '',
+      cobra_comision_fija: p.cobra_comision_fija !== false,
       activo: p.activo,
       imagen_url: p.imagen_url ?? '',
     })
@@ -357,6 +360,19 @@ export default function ProductosPage() {
                   {(!form.comision_pct || parseFloat(form.comision_pct) === 0) && (
                     <p className="text-xs text-gray-500 mt-1">Sin porcentaje: aplica comisión fija de 2ª capa (20%)</p>
                   )}
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="cobra_comision_fija"
+                      checked={form.cobra_comision_fija}
+                      onChange={e => setForm(f => ({ ...f, cobra_comision_fija: e.target.checked }))}
+                      className="rounded"
+                    />
+                    <label htmlFor="cobra_comision_fija" className="text-sm text-gray-300">
+                      Aplica comisión fija 20%
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -608,8 +624,10 @@ export default function ProductosPage() {
                   {p.monto_variable ? (
                     p.comision_pct ? (
                       <span className="text-amber-300">{p.comision_pct}%</span>
-                    ) : (
+                    ) : p.cobra_comision_fija !== false ? (
                       <span className="text-xs text-gray-500">20% fijo</span>
+                    ) : (
+                      <span className="text-xs text-gray-600">—</span>
                     )
                   ) : p.costo_indexado_usd ? (
                     <span>
