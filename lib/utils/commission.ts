@@ -52,6 +52,23 @@ export function calcularPrecioItem(
   }
 
   const precioFijoVes = producto.moneda_precio === 'VES'
+  const costoIndexadoUsd = producto.costo_indexado_usd === true
+
+  // Producto VES con costo indexado en USD (ej. cigarros):
+  // el precio de venta es fijo en Bs. pero el costo está anclado al USD,
+  // por lo que la comisión es dinámica según la tasa del día.
+  if (precioFijoVes && costoIndexadoUsd) {
+    const precioVes = producto.precio_ves ?? 0
+    const costoUsd = producto.costo_usd ?? 0
+    if (esPagoEnDivisas(metodoPago)) {
+      // En divisas → cobra el costo real en USD, sin comisión
+      return { precio_usd: costoUsd, comision: 0, precio_ves: tasa > 0 ? costoUsd * tasa : 0, moneda: 'USD' as const }
+    }
+    // En bolívares → comisión = (precio_ves / tasa) - costo_usd (varía cada día con la tasa)
+    const precioUsd = tasa > 0 ? precioVes / tasa : 0
+    const comisionUsd = Math.max(0, precioUsd - costoUsd)
+    return { precio_usd: precioUsd, comision: comisionUsd, precio_ves: precioVes, moneda: 'VES' as const }
+  }
 
   // Si la categoría no cobra comisión, o si el producto es de precio VES y se paga en divisas,
   // cobrar solo el costo (sin comisión). Para productos con precio fijo en USD, la comisión

@@ -15,24 +15,25 @@ export async function PUT(
     const body = await request.json()
     const {
       nombre, categoria_id, sistema_id, imagen_url, monto_variable, activo,
-      moneda_precio,
+      moneda_precio, costo_indexado_usd,
       costo_usd, precio_usd,
       costo_ves, precio_ves,
     } = body
 
     const esVes = moneda_precio === 'VES'
+    const esIndexado = esVes && !!costo_indexado_usd
 
     if (!monto_variable) {
       if (!esVes && precio_usd < costo_usd) {
         return NextResponse.json({ error: 'El precio no puede ser menor al costo' }, { status: 400 })
       }
-      if (esVes && precio_ves < costo_ves) {
+      if (esVes && !esIndexado && precio_ves < costo_ves) {
         return NextResponse.json({ error: 'El precio no puede ser menor al costo' }, { status: 400 })
       }
     }
 
     const comision_usd = monto_variable || esVes ? 0 : precio_usd - costo_usd
-    const comision_ves = monto_variable || !esVes ? null : precio_ves - costo_ves
+    const comision_ves = monto_variable || !esVes || esIndexado ? null : precio_ves - costo_ves
 
     // Resolver sistema_id para categorías con inventario_unidades
     let sistemaFinal = sistema_id ?? null
@@ -76,10 +77,11 @@ export async function PUT(
         nombre, categoria_id, sistema_id: sistemaFinal, monto_variable, activo,
         imagen_url: imagen_url ?? null,
         moneda_precio: moneda_precio ?? 'USD',
-        costo_usd: esVes ? 0 : costo_usd,
+        costo_indexado_usd: esIndexado,
+        costo_usd: esVes ? (esIndexado ? costo_usd : 0) : costo_usd,
         precio_usd: esVes ? 0 : precio_usd,
         comision_usd,
-        costo_ves: esVes ? costo_ves : null,
+        costo_ves: esVes && !esIndexado ? costo_ves : null,
         precio_ves: esVes ? precio_ves : null,
         comision_ves,
       })

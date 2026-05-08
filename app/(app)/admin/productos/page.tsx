@@ -12,6 +12,7 @@ const EMPTY_FORM = {
   costo: '',
   precio: '',
   monedaIngreso: 'USD' as 'USD' | 'VES',
+  costo_indexado_usd: false,
   monto_variable: false,
   activo: true,
   imagen_url: '' as string,
@@ -79,22 +80,25 @@ export default function ProductosPage() {
   const costoNum = parseFloat(form.costo || '0') || 0
   const precioNum = parseFloat(form.precio || '0') || 0
 
-  const costoUSD = form.monedaIngreso === 'VES' ? vesToUsd(costoNum, tasa) : costoNum
+  // Modo mixto: precio en VES, costo en USD
+  const esModoMixto = form.monedaIngreso === 'VES' && form.costo_indexado_usd
+
+  const costoUSD = esModoMixto ? costoNum : form.monedaIngreso === 'VES' ? vesToUsd(costoNum, tasa) : costoNum
   const precioUSD = form.monedaIngreso === 'VES' ? vesToUsd(precioNum, tasa) : precioNum
-  const costoVES = form.monedaIngreso === 'USD' ? usdToVes(costoNum, tasa) : costoNum
+  const costoVES = esModoMixto ? usdToVes(costoNum, tasa) : form.monedaIngreso === 'USD' ? usdToVes(costoNum, tasa) : costoNum
   const precioVES = form.monedaIngreso === 'USD' ? usdToVes(precioNum, tasa) : precioNum
   const comision = form.monto_variable ? 0 : Math.max(0, precioUSD - costoUSD)
 
   function cambiarMoneda(nueva: 'USD' | 'VES') {
     if (nueva === form.monedaIngreso || !tasa) return
-    // Convierte los valores actuales a la nueva moneda
+    // Al cambiar de moneda, limpiar costo_indexado_usd y convertir valores
     const nuevoCosto = nueva === 'VES'
       ? (costoUSD ? usdToVes(costoUSD, tasa).toFixed(2) : '')
       : (costoVES ? vesToUsd(costoVES, tasa).toFixed(4) : '')
     const nuevoPrecio = nueva === 'VES'
       ? (precioUSD ? usdToVes(precioUSD, tasa).toFixed(2) : '')
       : (precioVES ? vesToUsd(precioVES, tasa).toFixed(4) : '')
-    setForm(f => ({ ...f, monedaIngreso: nueva, costo: nuevoCosto, precio: nuevoPrecio }))
+    setForm(f => ({ ...f, monedaIngreso: nueva, costo_indexado_usd: false, costo: nuevoCosto, precio: nuevoPrecio }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -117,11 +121,12 @@ export default function ProductosPage() {
       activo: form.activo,
       imagen_url: form.imagen_url || null,
       moneda_precio: esVes ? 'VES' : 'USD',
-      // USD fijo
-      costo_usd: form.monto_variable || esVes ? 0 : costoUSD,
+      costo_indexado_usd: form.costo_indexado_usd,
+      // USD: costo en USD (también cuando es modo mixto VES precio / USD costo)
+      costo_usd: form.monto_variable ? 0 : esVes && !esModoMixto ? 0 : costoUSD,
       precio_usd: form.monto_variable || esVes ? 0 : precioUSD,
       // VES fijo
-      costo_ves: form.monto_variable || !esVes ? null : costoNum,
+      costo_ves: form.monto_variable || !esVes || esModoMixto ? null : costoNum,
       precio_ves: form.monto_variable || !esVes ? null : precioNum,
     }
 
@@ -154,13 +159,16 @@ export default function ProductosPage() {
 
   function iniciarEdicion(p: Producto) {
     const esVes = p.moneda_precio === 'VES'
+    const esIndexado = esVes && p.costo_indexado_usd
     setForm({
       nombre: p.nombre,
       categoria_id: p.categoria_id,
       sistema_id: p.sistema_id ?? '',
-      costo: esVes ? (p.costo_ves ?? 0).toString() : p.costo_usd.toString(),
+      // Modo mixto: costo guardado en USD, precio en VES
+      costo: esIndexado ? p.costo_usd.toString() : esVes ? (p.costo_ves ?? 0).toString() : p.costo_usd.toString(),
       precio: esVes ? (p.precio_ves ?? 0).toString() : p.precio_usd.toString(),
       monedaIngreso: esVes ? 'VES' : 'USD',
+      costo_indexado_usd: !!p.costo_indexado_usd,
       monto_variable: p.monto_variable,
       activo: p.activo,
       imagen_url: p.imagen_url ?? '',
@@ -341,14 +349,31 @@ export default function ProductosPage() {
                     </div>
                   </div>
 
+                  {/* Checkbox costo indexado en USD — solo para precios VES */}
+                  {form.monedaIngreso === 'VES' && (
+                    <div className="col-span-2 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="costo_indexado_usd"
+                        checked={form.costo_indexado_usd}
+                        onChange={e => setForm(f => ({ ...f, costo_indexado_usd: e.target.checked, costo: '' }))}
+                        className="rounded"
+                      />
+                      <label htmlFor="costo_indexado_usd" className="text-sm text-gray-300">
+                        Costo indexado en USD
+                        <span className="ml-1.5 text-xs text-gray-500">(comisión varía según tasa del día)</span>
+                      </label>
+                    </div>
+                  )}
+
                   {/* Costo */}
                   <div>
                     <label className="block text-xs font-medium text-gray-300 mb-1">
-                      Costo {form.monedaIngreso === 'USD' ? '(USD)' : '(Bs.)'}
+                      Costo {esModoMixto ? '(USD)' : form.monedaIngreso === 'USD' ? '(USD)' : '(Bs.)'}
                     </label>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       min="0"
                       required
                       value={form.costo}
@@ -358,7 +383,7 @@ export default function ProductosPage() {
                     />
                     {tasa > 0 && form.costo && (
                       <p className="text-xs text-gray-400 mt-1">
-                        = {form.monedaIngreso === 'USD' ? formatVES(costoVES) : formatUSD(costoUSD)}
+                        = {esModoMixto ? formatVES(costoVES) : form.monedaIngreso === 'USD' ? formatVES(costoVES) : formatUSD(costoUSD)}
                       </p>
                     )}
                   </div>
@@ -370,13 +395,13 @@ export default function ProductosPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.01"
+                      step={esModoMixto ? '1' : '0.01'}
                       min="0"
                       required
                       value={form.precio}
                       onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
                       className={inputCls}
-                      placeholder="0.00"
+                      placeholder={esModoMixto ? '80000' : '0.00'}
                     />
                     {tasa > 0 && form.precio && (
                       <p className="text-xs text-gray-400 mt-1">
@@ -400,10 +425,21 @@ export default function ProductosPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">Comisión</p>
-                        <p className={`font-medium ${comision < 0 ? 'text-red-400' : 'text-amber-400'}`}>
-                          {formatUSD(comision)}
-                        </p>
-                        <p className="text-xs text-gray-400">{formatVES(usdToVes(comision, tasa))}</p>
+                        {esModoMixto ? (
+                          <p className="text-xs text-amber-300 italic">Varía con la tasa del día</p>
+                        ) : (
+                          <>
+                            <p className={`font-medium ${comision < 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                              {formatUSD(comision)}
+                            </p>
+                            <p className="text-xs text-gray-400">{formatVES(usdToVes(comision, tasa))}</p>
+                          </>
+                        )}
+                        {esModoMixto && tasa > 0 && costoNum > 0 && precioNum > 0 && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Hoy: {formatUSD(Math.max(0, precioNum / tasa - costoNum))}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -502,7 +538,13 @@ export default function ProductosPage() {
                 </td>
                 <td className="px-4 py-3 text-gray-400">{p.categoria?.nombre ?? '—'}</td>
                 <td className="px-4 py-3 text-right">
-                  {p.monto_variable ? '—' : p.moneda_precio === 'VES' ? (
+                  {p.monto_variable ? '—' : p.costo_indexado_usd ? (
+                    <span>
+                      <span className="text-gray-200 font-medium">{formatUSD(p.costo_usd)}</span>
+                      {tasa > 0 && <span className="block text-xs text-gray-500">{formatVES(usdToVes(p.costo_usd, tasa))}</span>}
+                      <span className="block text-xs text-blue-400">idx USD</span>
+                    </span>
+                  ) : p.moneda_precio === 'VES' ? (
                     <span>
                       <span className="text-gray-200 font-medium">{formatVES(p.costo_ves ?? 0)}</span>
                       {tasa > 0 && <span className="block text-xs text-gray-500">{formatUSD((p.costo_ves ?? 0) / tasa)}</span>}
@@ -528,7 +570,14 @@ export default function ProductosPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right text-amber-400">
-                  {p.monto_variable ? '—' : p.moneda_precio === 'VES'
+                  {p.monto_variable ? '—' : p.costo_indexado_usd ? (
+                    <span>
+                      <span className="italic text-xs text-amber-300">~tasa</span>
+                      {tasa > 0 && (p.precio_ves ?? 0) > 0 && (
+                        <span className="block text-xs">{formatUSD(Math.max(0, (p.precio_ves ?? 0) / tasa - p.costo_usd))}</span>
+                      )}
+                    </span>
+                  ) : p.moneda_precio === 'VES'
                     ? formatVES(p.comision_ves ?? 0)
                     : formatUSD(p.comision_usd)
                   }
