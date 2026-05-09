@@ -226,9 +226,17 @@ export default function POSPage() {
     // Esto garantiza que el cuadre de boletería/lotería cuente unidades correctamente
     const items = carrito.flatMap(item => {
       const calc = calcularPrecioItem(item.producto, metodoParaCalculo, tasaValor, item.monto_libre_usd, item.monto_libre_ves)
-      const costoUsd = item.producto.moneda_precio === 'VES'
-        ? (item.producto.costo_ves ?? 0) / tasaValor
-        : item.producto.costo_usd
+      const costoUsd = (() => {
+        if (item.producto.monto_variable) {
+          const vesAmt = item.monto_libre_ves ?? (item.monto_libre_usd ? item.monto_libre_usd * tasaValor : 0)
+          const pct = item.producto.comision_pct ?? 0
+          if (vesAmt > 0 && pct > 0 && tasaValor > 0) return (vesAmt * (1 - pct / 100)) / tasaValor
+          return tasaValor > 0 ? vesAmt / tasaValor : 0
+        }
+        return item.producto.moneda_precio === 'VES'
+          ? (item.producto.costo_ves ?? 0) / tasaValor
+          : item.producto.costo_usd
+      })()
       const comisionDefinidaUsd = item.producto.moneda_precio === 'VES'
         ? (item.producto.comision_ves ?? 0) / tasaValor
         : item.producto.comision_usd
